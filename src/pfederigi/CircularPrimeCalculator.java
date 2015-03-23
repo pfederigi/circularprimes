@@ -53,14 +53,22 @@ public class CircularPrimeCalculator {
   }
 
   /**
-   * Inicia el proceso de calculo y búsqueda.
+   * Inicia el proceso de calculo y búsqueda
    *
    * @throws InterruptedException
    */
   public void execute() throws InterruptedException {
 
+    /**
+     * Arreglo para marcar los números compuestos. 
+     * Todo número impar que quede sin marcar en este arreglo será primo. 
+     * Dicha marca es true si es compuesto y false si es primo.
+     */
     final boolean[] nums = new boolean[CALC_LIMIT + 1];
 
+    /* 
+      Creación de los hilos (Threads)
+    */
     for (int tid = 0; tid < THREAD_COUNT; tid++) {
       final Thread t = new Thread(new Worker(tid, nums));
       t.setName("Worker-Thread-" + tid);
@@ -68,6 +76,10 @@ public class CircularPrimeCalculator {
       t.start();
     }
 
+    /* 
+      Distribución de números a procesar.
+      Se tienen en cuenta únicamente los impares mayores o igual que 3
+    */
     int root = (int) Math.ceil(Math.sqrt((double) CALC_LIMIT));
     for (int i = 3; i <= root; i += 2) {
       if (!nums[i]) {
@@ -82,25 +94,45 @@ public class CircularPrimeCalculator {
       }
     }
 
+    /*
+      Cota de fin de cálculos para los subprocesos (-1).
+    */
     for (int tid = 0; tid < THREAD_COUNT; tid++) {
       queue.put(-1);
     }
 
+    /*
+      Se agrega el número 2 como parte de los números primos circulares
+    */
     if (CALC_LIMIT > 2) {
       circularPrimes.add(2);
     }
 
+    /*
+      Esperar a que finalicen los hilos.
+    */
     for (int tid = 0; tid < THREAD_COUNT; tid++) {
       ths[tid].join();
     }
 
   }
 
+  /**
+   * Devuelve el resultado del proceso iniciado por <code>execute</code>.
+   * @return los números primos circulares calculados por el método
+   * <code>execute</code>.
+   */
   public Set<Integer> getResult() {
     Set<Integer> result = new TreeSet(circularPrimes);
     return result;
   }
 
+  /**
+   * Imprime por pantalla el resultado del proceso iniciado por 
+   * <code>execute</code>.
+   * Imprime por consola la cantidad y el listado de los números primos
+   * circulares.
+   */
   public void report() {
     System.out.printf("Cantidad calculados: %d\n", totalHit.intValue());
     System.out.printf("\n*** Resultado ***\n");
@@ -156,6 +188,12 @@ public class CircularPrimeCalculator {
       report();
     }
 
+    /**
+     * Imprime por consola estadísticas simples del proceso.
+     * Imprime el tiempo de cálculo que costó el calculo de los múltiplos,
+     * la búsqueda de los primos circulares y la cantidad de números tomados
+     * de la cola.
+     */
     private void report() {
       System.out.printf("TID[%d] Times: %.2f ms. - %.2f ms. - %.2f ms.| Count %d\n",
               TID, ssTime1 / 1000000.0, ssTime2 / 1000000.0, (ssTime1 + ssTime2) / 1000000.0, numbersTaken);
@@ -163,6 +201,9 @@ public class CircularPrimeCalculator {
       totalHit.addAndGet(numbersTaken);
     }
 
+    /**
+     * Espera que todos los hilos alcancen la barrera <code>barrier</code>.
+     */
     private void waitSStep() {
       try {
         barrier.await();
@@ -171,6 +212,9 @@ public class CircularPrimeCalculator {
       }
     }
 
+    /**
+     * Busca los primos circulares dentro del conjunto de los números primos.
+     */
     private void searchForCircularNumbers() {
       startTime = System.nanoTime();
       for (int i = 3 + (2 * (TID)); i < CALC_LIMIT; i += (2 * THREAD_COUNT)) {
@@ -193,6 +237,11 @@ public class CircularPrimeCalculator {
       ssTime2 = System.nanoTime() - startTime;
     }
 
+    /**
+     * Busca un número en la cola y marca sus múltiplos.
+     * @return indica si hay más números en la cola. <code>True</code> indica
+     * que sigue habiendo números en la cola. <code>False</code> si no lo hay.
+     */
     private boolean processNextStep() {
       try {
         int step = queue.take();
@@ -216,6 +265,16 @@ public class CircularPrimeCalculator {
       return false;
     }
 
+    /**
+     * Indica si se debe o no procesar el número n. 
+     * No es necesario procesar todos los números enteros. Los números
+     * que contengan 0, 2, 4, 5, 6 u 8 como dígito no serán primos en al menos
+     * alguna de sus rotaciones, debido a que dicho número será par, múltiplo
+     * de 5 o múltiplo de 10.
+     * @param n número que se desea verificar si se debe o no procesar
+     * @return indica si se debe procesar el número n. <code>True</code> se debe
+     * procesar, en otro caso <code>False</code>.
+     */
     private boolean filter(int n) {
       if (n < 10) {
         return true;
@@ -232,6 +291,11 @@ public class CircularPrimeCalculator {
       return true;
     }
 
+    /**
+     * Realiza la rotación de un número
+     * @param n número que se desea rotar
+     * @return resultado de la rotación de <code>n<code>
+     */
     private int orbit(int n) {
       int n_10 = n / 10;
       int orbit = n % 10;
